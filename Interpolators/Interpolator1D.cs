@@ -1,8 +1,5 @@
-﻿//#define INTERPOLATOR1D_DO_CHECK
+﻿//#define INTERPOLATOR1D_FORCE_ERROR
 #define INTERPOLATOR1D_FORCE_CLAMP
-
-using UnityEngine;
-using System;
 
 /*
  * Implements functions from this GDC talk: https://www.youtube.com/watch?v=mr5xkf6zSzk
@@ -27,7 +24,7 @@ namespace Interpolators
         /// <returns>Value between 0 and 1</returns>
         public static float RangeMap01(float t, float min, float max)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -69,7 +66,7 @@ namespace Interpolators
         /// <returns>t * t</returns>
         public static float SmoothStart2(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -85,7 +82,7 @@ namespace Interpolators
         /// <returns>t * t * t</returns>
         public static float SmoothStart3(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -101,7 +98,7 @@ namespace Interpolators
         /// <returns>t * t * t * t</returns>
         public static float SmoothStart4(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -117,7 +114,7 @@ namespace Interpolators
         /// <returns>t * (2 - t)</returns>
         public static float SmoothStop2(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -133,7 +130,7 @@ namespace Interpolators
         /// <returns>t * (3 + t * (t - 3))</returns>
         public static float SmoothStop3(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -149,7 +146,7 @@ namespace Interpolators
         /// <returns>t * (4 + t * (t * (4 - t) - 6))</returns>
         public static float SmoothStop4(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -165,7 +162,7 @@ namespace Interpolators
         /// <returns></returns>
         public static float SmoothStep3(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
@@ -182,16 +179,103 @@ namespace Interpolators
         /// <returns></returns>
         public static float SmoothStep5(float t)
         {
-#if INTERPOLATOR1D_DO_CHECK
+#if INTERPOLATOR1D_FORCE_ERROR
         if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
 #elif INTERPOLATOR1D_FORCE_CLAMP
             t = Saturate(t);
 #endif
+            //https://en.wikipedia.org/wiki/Smoothstep
             return t * t * t * (10 + t * (6 * t - 15));
         }
 
+        /// <summary>
+        /// Smooths value t around 0 and around 1 even more and more :D. <para>Note: t MUST be between 0 and 1</para>
+        /// </summary>
+        /// <param name="t">Variable to be smoothed</param>
+        /// <returns></returns>
+        public static float SmoothStep7(float t)
+        {
+#if INTERPOLATOR1D_FORCE_ERROR
+        if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
+#elif INTERPOLATOR1D_FORCE_CLAMP
+            t = Saturate(t);
+#endif
+            float t2 = t * t;
+            //https://en.wikipedia.org/wiki/Smoothstep
+            //-20t7+70t6-84t5+35t4= t2 * t2 * (35 + t * (t * (70 - 20 * t) -84))
+            return t2 * t2 * (35 + t * (t * (70 - 20 * t) - 84));
+        }
 
-        
+        /// <summary>
+        /// Returns 'arch' function. t = 0 => 0, t = 0.5 => 1, t = 1 => 0 <para>Note: t MUST be between 0 and 1</para>
+        /// </summary>
+        /// <param name="t">Parameter of arch function</param>
+        /// <returns></returns>
+        public static float Arch2(float t)
+        {
+#if INTERPOLATOR1D_FORCE_ERROR
+        if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
+#elif INTERPOLATOR1D_FORCE_CLAMP
+            t = Saturate(t);
+#endif
+            return 4 * t * (1 - t);
+        }
+
+        /// <summary>
+        /// Returns smooth 'arch' function. t = 0 => 0, t = 0.5 => 1, t = 1 => 0 <para>Note: t MUST be between 0 and 1</para>
+        /// </summary>
+        /// <param name="t">Parameter of arch function</param>
+        /// <returns></returns>
+        public static float Arch4(float t)
+        {
+#if INTERPOLATOR1D_FORCE_ERROR
+        if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
+#elif INTERPOLATOR1D_FORCE_CLAMP
+            t = Saturate(t);
+#endif
+            //16x2 * (1 - 2x + x2)= 16x2 - 32x3 +16x4 = x * x * (16 + x * (16 * x - 32)) 
+            return 16 * t * t * (1 - t) * (1 - t);
+        }
+
+        /// <summary>
+        /// Returns smoothest 'arch' function. t = 0 => 0, t = 0.5 => 1, t = 1 => 0 <para>Note: t MUST be between 0 and 1</para>
+        /// </summary>
+        /// <param name="t">Parameter of arch function</param>
+        /// <returns></returns>
+        public static float Arch6(float t)
+        {
+#if INTERPOLATOR1D_FORCE_ERROR
+        if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
+#elif INTERPOLATOR1D_FORCE_CLAMP
+            t = Saturate(t);
+#endif
+            //64t3 - 192t4+192t5-64t6
+            return t * t * t * (64 + t * (t * (192 - 64 * t) - 192));
+        }
+
+        /// <summary>
+        /// Cubic Bezier 1D 'curve' that starts at 0 and ends at 1.
+        /// First control pont is 0 and last is  1!
+        /// </summary>
+        /// <param name="B">Second conrol point</param>
+        /// <param name="C">Third control point</param>
+        /// <param name="t">'Curve' parameter</param>
+        /// <returns></returns>
+        public static float NormalizedBezier3(float B, float C, float t)
+        {
+#if INTERPOLATOR1D_FORCE_ERROR
+        if (t > max || t < min) throw new ArgumentOutOfRangeException("t must be between min and max");
+#elif INTERPOLATOR1D_FORCE_CLAMP
+            t = Saturate(t);
+#endif
+
+            float s = 1 - t;
+            float t2 = t * t;
+            float s2 = s * s;
+            float t3 = t2 * t;
+            return (3 * B * s2 * t) + (3 * C * s * t2) + t3;  
+        }
+
         /// <summary>
         /// Clamps variable t between 0 and 1
         /// </summary>
@@ -199,7 +283,9 @@ namespace Interpolators
         /// <returns>Calue between 0 and 1</returns>
         public static float Saturate(float t)
         {
-            return Mathf.Max(0, Mathf.Min(1, t));
+            if (t > 1) return 1;
+            if (t < 0) return 0;
+            return t;
         }
     }
 }
