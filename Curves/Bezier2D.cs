@@ -13,11 +13,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Interpolators;
+
 namespace Curves
 {
     /// <summary>
     /// Bezier path object in 2D
     /// </summary>
+    [Serializable]
     public class Bezier2D
     {
         [HideInInspector, SerializeField]
@@ -51,7 +54,35 @@ namespace Curves
         /// <summary>
         /// Is this a closed path?
         /// </summary>
-        public bool IsClosed { get { return isClosed; } } 
+        public bool IsClosed { get { return isClosed; }
+            set
+            {
+                if(isClosed != value)
+                {
+                    isClosed = value;
+
+                    if (isClosed)
+                    {
+                        points.Add(points[points.Count - 1] + points[points.Count - 1] - points[points.Count - 2]);
+                        points.Add(points[0] + points[0] - points[1]);
+                        if (autoSetPoints)
+                        {
+                            AutoSetAnchorControlPoints(0);
+                            AutoSetAnchorControlPoints(points.Count - 3);
+                        }
+                    }
+                    else
+                    {
+                        points.RemoveAt(points.Count - 1);
+                        points.RemoveAt(points.Count - 1);
+                        if (autoSetPoints)
+                        {
+                            AutoSetStartAndEndControls();
+                        }
+                    }
+                }
+            }
+        } 
 
         /// <summary>
         /// Number of points in a path
@@ -94,13 +125,16 @@ namespace Curves
         /// <param name="anchor">Anchor point (end of new segment)</param>
         public void AddSegment(Vector2 anchor)
         {
-            points.Add(points[points.Count - 1] + points[points.Count - 1] - points[points.Count - 2]);
-            points.Add((points[points.Count - 1] + anchor) * 0.5f);
-            points.Add(anchor);
-
-            if(autoSetPoints)
+            if (!isClosed)
             {
-                AutoSetAffectedControlPoints(points.Count - 1);
+                points.Add(points[points.Count - 1] + points[points.Count - 1] - points[points.Count - 2]);
+                points.Add((points[points.Count - 1] + anchor) * 0.5f);
+                points.Add(anchor);
+
+                if (autoSetPoints)
+                {
+                    AutoSetAffectedControlPoints(points.Count - 1);
+                }
             }
         }
 
@@ -131,7 +165,6 @@ namespace Curves
             if (!autoSetPoints || index % 3 == 0)
             {
                 points[index] = newPos;
-            }
 
             if(autoSetPoints)
             {
@@ -139,61 +172,125 @@ namespace Curves
                 return;
             }
 
-            if(index % 3 == 0)
-            {
-                if(index + 1 < points.Count || isClosed)
+                if (index % 3 == 0)
                 {
-                    points[LoopIndex(index + 1)] += deltaMove;
+                    if (index + 1 < points.Count || isClosed)
+                    {
+                        points[LoopIndex(index + 1)] += deltaMove;
+                    }
+                    if (index - 1 >= 0 || isClosed)
+                    {
+                        points[LoopIndex(index - 1)] += deltaMove;
+                    }
                 }
-                if(index - 1 >= 0 || isClosed)
+                else
                 {
-                    points[LoopIndex(index - 1)] += deltaMove;
-                }
-            }
-            else
-            {
-                bool isNextAnchor = (index + 1) % 3 == 0;
-                int correspondingControlPoint = isNextAnchor ? index + 2 : index - 2;
+                    bool isNextAnchor = (index + 1) % 3 == 0;
+                    int correspondingControlPoint = isNextAnchor ? index + 2 : index - 2;
 
-                if(correspondingControlPoint >= 0 && correspondingControlPoint < points.Count || isClosed)
-                {
-                    int anchorIndex = isNextAnchor ? index + 1 : index - 1;
-                    anchorIndex = LoopIndex(anchorIndex);
-                    correspondingControlPoint = LoopIndex(correspondingControlPoint);
-                    float dst = (points[anchorIndex] - points[correspondingControlPoint]).magnitude;
-                    Vector2 dir = (points[anchorIndex] - newPos).normalized;
-                    points[correspondingControlPoint] = points[anchorIndex] + dir * dst;
+                    if (correspondingControlPoint >= 0 && correspondingControlPoint < points.Count || isClosed)
+                    {
+                        int anchorIndex = isNextAnchor ? index + 1 : index - 1;
+                        anchorIndex = LoopIndex(anchorIndex);
+                        correspondingControlPoint = LoopIndex(correspondingControlPoint);
+                        float dst = (points[anchorIndex] - points[correspondingControlPoint]).magnitude;
+                        Vector2 dir = (points[anchorIndex] - newPos).normalized;
+                        points[correspondingControlPoint] = points[anchorIndex] + dir * dst;
+                    }
                 }
             }
         }
 
-
         /// <summary>
-        /// Closes or opens path.
+        /// Adds control point with position <paramref name="anchorPos"/> into the middle of segment with <paramref name="segmentIndex"/>
         /// </summary>
-        public void ToggleClosed()
+        /// <param name="anchorPos">Position of new anchor point</param>
+        /// <param name="segmentIndex">Segment index of affected segment</param>
+        public void SplitSegment(Vector2 anchorPos, int segmentIndex)
         {
-            isClosed = !isClosed;
-
-            if(isClosed)
+            if (segmentIndex < 0 || segmentIndex >= SegmentCount) throw new ArgumentOutOfRangeException("Segment index invalid");
+            points.InsertRange(segmentIndex * 3 + 2, new Vector2[] { Vector2.zero, anchorPos, Vector2.zero });
+            if(autoSetPoints)
             {
-                points.Add(points[points.Count - 1] + points[points.Count - 1] - points[points.Count - 2]);
-                points.Add(points[0] + points[0] - points[1]);
-                if(autoSetPoints)
-                {
-                    AutoSetAnchorControlPoints(0);
-                    AutoSetAnchorControlPoints(points.Count - 3);
-                }
+                AutoSetAffectedControlPoints(segmentIndex * 3 + 3);
             }
             else
             {
-                points.RemoveAt(points.Count - 1);
-                points.RemoveAt(points.Count - 1);
-                if(autoSetPoints)
+                AutoSetAnchorControlPoints(segmentIndex * 3 + 3);
+            }
+
+        }
+
+        /// <summary>
+        /// Deletes segment coresponding to <paramref name="anchorIndex"/>
+        /// </summary>
+        /// <param name="anchorIndex">Index of anchor point that is being deleted</param>
+        public void DeleteSegment(int anchorIndex)
+        {
+            if (anchorIndex < 0 || anchorIndex >= PointCount) throw new ArgumentOutOfRangeException("Point index invalid.");
+
+            if (SegmentCount > 2 || (!isClosed && SegmentCount > 1))
+            {
+
+                if (anchorIndex == 0)
                 {
-                    AutoSetStartAndEndControls();
+                    if (isClosed)
+                    {
+                        points[points.Count - 1] = points[2];
+                    }
+                    points.RemoveRange(0, 3);
+                }
+                else if (anchorIndex == points.Count - 1 && !isClosed)
+                {
+                    points.RemoveRange(anchorIndex - 2, 3);
+                }
+                else
+                {
+                    points.RemoveRange(anchorIndex - 1, 3);
                 }
             }
+        }
+
+        /// <summary>
+        /// Calculates evenly spaced points on a curve and stores them into array
+        /// </summary>
+        /// <param name="spacing">How far appart the points should be</param>
+        /// <param name="resolution">Higher values for more precision and slower compute time</param>
+        /// <returns>Array of evenly spaced points</returns>
+        public Vector2[] CalculateEvenlySpacedPoints(float spacing, float resolution = 1)
+        {
+            List<Vector2> evenlySpacedPoints = new List<Vector2>();
+            evenlySpacedPoints.Add(points[0]);
+            Vector2 previousPoint = points[0];
+            float distanceSinceLastEvenPoint = 0;
+
+            for (int segmentIndex = 0; segmentIndex < SegmentCount; segmentIndex++)
+            {
+                Vector2[] p = PointsInSegment(segmentIndex);
+                float controlNetLength = Vector2.Distance(p[0], p[1]) + Vector2.Distance(p[1], p[2]) + Vector2.Distance(p[2], p[3]);
+                float estimatedCurveLength = Vector2.Distance(p[0], p[3]) + 0.5f * controlNetLength;
+                float dt = 1f / (estimatedCurveLength * resolution * 10);
+                float t = 0;
+                while(t <= 1)
+                {
+                    t += dt;
+                    Vector2 pointOnCurve = Interpolator2D.EvaluateCubic(p[0], p[1], p[2], p[3], t);
+                    distanceSinceLastEvenPoint += Vector2.Distance(previousPoint, pointOnCurve);
+
+                    while(distanceSinceLastEvenPoint >= spacing)
+                    {
+                        float overshootDistance = distanceSinceLastEvenPoint - spacing;
+                        Vector2 newEvenlySpacedPoint = pointOnCurve + (previousPoint - pointOnCurve).normalized * overshootDistance;
+                        evenlySpacedPoints.Add(newEvenlySpacedPoint);
+                        distanceSinceLastEvenPoint = overshootDistance;
+                        previousPoint = newEvenlySpacedPoint;
+                    }
+
+                    previousPoint = pointOnCurve;
+                }
+            }
+
+            return evenlySpacedPoints.ToArray();
         }
 
         /// <summary>
@@ -205,6 +302,7 @@ namespace Curves
         {
             return (i + points.Count) % points.Count;
         }
+
 
         /// <summary>
         /// Automatically sets control points around given anchor point
@@ -264,6 +362,11 @@ namespace Curves
             AutoSetStartAndEndControls();
         }
 
+
+        /// <summary>
+        /// Autosets control points around anchor point with index <paramref name="updateAnchorIndex"/>
+        /// </summary>
+        /// <param name="updateAnchorIndex">Index of affected anchor point</param>
         private void AutoSetAffectedControlPoints(int updateAnchorIndex)
         {
             for (int i = updateAnchorIndex - 3; i <= updateAnchorIndex + 3; i += 3)

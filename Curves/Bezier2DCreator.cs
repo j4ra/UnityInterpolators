@@ -25,7 +25,7 @@ namespace Curves
         /// </summary>
         public void CreatePath()
         {
-            path = new Bezier2D(transform.position);
+            path = new Bezier2D(Vector3.zero);
         }
     }
 }
